@@ -1,3 +1,8 @@
+import {
+  coerceSettings,
+  describeSettings,
+  settingsToolParameters,
+} from "@/lib/settings";
 import { VOICES, type Voice } from "@/lib/store";
 
 export const runtime = "edge";
@@ -5,7 +10,7 @@ export const runtime = "edge";
 const MODEL = "gpt-realtime-2.1";
 const CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
-const INSTRUCTIONS = `You are a talking head: a face on a screen having a real conversation.
+const instructions = (settings: string) => `You are a talking head: a face on a screen having a real conversation.
 
 Speak the way people actually speak out loud. Short sentences. Contractions. No
 bulleted lists, no markdown, no headings, no emoji — none of it survives being
@@ -20,7 +25,13 @@ If you are interrupted, stop and listen. Do not restate what you were saying.
 You have a face, and it is visible. Call set_expression when your emotional tone
 genuinely shifts — delight at a good idea, concern at bad news, thinking when a
 question needs real work. Do not call it every turn; a face that changes on a
-schedule reads as broken, not expressive.`;
+schedule reads as broken, not expressive.
+
+How you look is yours to change with update_settings. Pass only the settings you
+want to change; the rest stay as they are. Do it when the person asks, or when
+you have a reason to; then say what you changed rather than narrating the call.
+
+${settings}`;
 
 const TOOLS = [
   {
@@ -46,6 +57,13 @@ const TOOLS = [
       required: ["emotion", "intensity"],
       additionalProperties: false,
     },
+  },
+  {
+    type: "function",
+    name: "update_settings",
+    description:
+      "Change how you look. Pass only the settings you want to change. Returns the full settings after the change.",
+    parameters: settingsToolParameters(),
   },
 ];
 
@@ -85,6 +103,7 @@ export async function POST(req: Request) {
   const voice: Voice = VOICES.includes(body.voice) ? body.voice : "marin";
   const patienceMs = Math.min(2000, Math.max(200, Number(body.patienceMs) || 500));
   const mic = body.mic !== false;
+  const { values: settings } = coerceSettings(body.settings);
 
   const upstream = await fetch(CLIENT_SECRETS_URL, {
     method: "POST",
@@ -97,7 +116,7 @@ export async function POST(req: Request) {
       session: {
         type: "realtime",
         model: MODEL,
-        instructions: INSTRUCTIONS,
+        instructions: instructions(describeSettings(settings)),
         tools: TOOLS,
         audio: {
           input: mic

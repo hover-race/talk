@@ -1,4 +1,5 @@
 import { audioBus } from "./audio";
+import { applySettings, readSettings } from "./settings";
 import { EXPRESSIONS, useTalkStore, type Expression } from "./store";
 
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
@@ -32,6 +33,7 @@ export class RealtimeSession {
         voice: store.voice,
         patienceMs: store.patienceMs,
         mic,
+        settings: readSettings(),
       }),
     });
     if (!res.ok) {
@@ -234,6 +236,8 @@ export class RealtimeSession {
 
   private handleFunctionCall(name: string, callId: string, args: string) {
     const store = useTalkStore.getState();
+    let output: unknown = { ok: true };
+
     if (name === "set_expression") {
       const parsed = JSON.parse(args) as {
         emotion?: string;
@@ -250,12 +254,18 @@ export class RealtimeSession {
       );
     }
 
+    if (name === "update_settings") {
+      // Echo the whole settings state back, so the model stays in sync with
+      // whatever the user has changed by hand since the session started.
+      output = applySettings(JSON.parse(args));
+    }
+
     this.send({
       type: "conversation.item.create",
       item: {
         type: "function_call_output",
         call_id: callId,
-        output: JSON.stringify({ ok: true }),
+        output: JSON.stringify(output),
       },
     });
     // A tool call ends the response, so the model needs a new one to actually speak.
