@@ -24,8 +24,16 @@ const MANE = [0, 1, 2, 3, 4, 5].map((i) => {
 
 export function ProceduralHead() {
   const headId = useTalkStore((s) => s.head);
+  const hairOverride = useTalkStore((s) => s.hairColor);
+  const hairLength = useTalkStore((s) => s.hairLength);
   const preset = HEAD_PRESETS[headId];
+  const hair = hairOverride ?? preset.palette.hair;
   const drive = useFaceDriver();
+
+  // Both masses grow downward from a fixed top edge, so lengthening the hair
+  // doesn't lift the hairline off the forehead.
+  const backHeight = 1.12 + hairLength * 0.6;
+  const lockLength = 0.55 + hairLength * 1.5;
 
   const root = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
@@ -80,7 +88,9 @@ export function ProceduralHead() {
     if (lidL.current) lidL.current.rotation.x = lidAngle;
     if (lidR.current) lidR.current.rotation.x = lidAngle;
 
-    const lowerAngle = -0.42 + pose.blink * 0.2 + pose.squint * 0.4;
+    // Positive tips the lower lid down and opens the eye; blinking and squinting
+    // bring it back up to meet the upper lid.
+    const lowerAngle = 0.36 - pose.blink * 0.15 - pose.squint * 0.3;
     if (lowLidL.current) lowLidL.current.rotation.x = lowerAngle;
     if (lowLidR.current) lowLidR.current.rotation.x = lowerAngle;
 
@@ -185,7 +195,7 @@ export function ProceduralHead() {
       rotation={[0, 0, Math.PI / 2]}
     >
       <capsuleGeometry args={[preset.brow.thickness, preset.brow.length, 4, 10]} />
-      <meshStandardMaterial color={c.accent} roughness={0.9} />
+      <meshStandardMaterial color={hair} roughness={0.9} />
     </mesh>
   );
 
@@ -213,25 +223,28 @@ export function ProceduralHead() {
             <sphereGeometry
               args={[1.01, 56, 40, 0, Math.PI * 2, 0, preset.hair.thetaLength]}
             />
-            <meshStandardMaterial color={c.hair} roughness={0.95} />
+            <meshStandardMaterial color={hair} roughness={0.95} />
           </mesh>
         )}
 
         {preset.longHair && (
           <>
             {/* Kept well behind the face plane so it frames rather than covers. */}
-            <mesh position={[0, -0.12, -0.35]} scale={[1.06, 1.12, 0.75]}>
+            <mesh
+              position={[0, 1.0 - backHeight, -0.35]}
+              scale={[1.06, backHeight, 0.75]}
+            >
               <sphereGeometry args={[1, 48, 32]} />
-              <meshStandardMaterial color={c.hair} roughness={0.95} />
+              <meshStandardMaterial color={hair} roughness={0.95} />
             </mesh>
             {[1, -1].map((s) => (
               <mesh
                 key={s}
-                position={[0.86 * s, -0.5, -0.12]}
+                position={[0.86 * s, -0.15 - lockLength / 2, -0.12]}
                 rotation={[0, 0, 0.08 * s]}
               >
-                <capsuleGeometry args={[0.16, 0.6, 6, 16]} />
-                <meshStandardMaterial color={c.hair} roughness={0.95} />
+                <capsuleGeometry args={[0.16, lockLength, 6, 16]} />
+                <meshStandardMaterial color={hair} roughness={0.95} />
               </mesh>
             ))}
           </>
@@ -283,7 +296,7 @@ export function ProceduralHead() {
           MANE.map((tuft, i) => (
             <mesh key={i} position={[0, tuft.y, tuft.z]} scale={[1.35, 1, 1]}>
               <sphereGeometry args={[tuft.r, 24, 18]} />
-              <meshStandardMaterial color={c.hair} roughness={0.95} />
+              <meshStandardMaterial color={hair} roughness={0.95} />
             </mesh>
           ))}
 
