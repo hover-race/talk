@@ -19,9 +19,10 @@ export class RealtimeSession {
     return this.dc?.readyState === "open";
   }
 
-  async connect() {
+  async connect({ mic = true }: { mic?: boolean } = {}) {
     const store = useTalkStore.getState();
     store.setError(null);
+    store.setMicEnabled(mic);
     store.setStatus("connecting");
 
     const res = await fetch("/api/session", {
@@ -30,6 +31,7 @@ export class RealtimeSession {
       body: JSON.stringify({
         voice: store.voice,
         patienceMs: store.patienceMs,
+        mic,
       }),
     });
     if (!res.ok) {
@@ -52,22 +54,35 @@ export class RealtimeSession {
       }
     };
 
-    this.mic = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-    pc.addTrack(this.mic.getTracks()[0], this.mic);
+    if (mic) {
+      this.mic = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      pc.addTrack(this.mic.getTracks()[0], this.mic);
+    } else {
+      // No mic track, but the assistant's audio still has to have somewhere to land.
+      pc.addTransceiver("audio", { direction: "recvonly" });
+    }
 
     const dc = pc.createDataChannel("oai-events");
     this.dc = dc;
     dc.addEventListener("message", (e) =>
       this.handleEvent(JSON.parse(e.data) as ServerEvent),
     );
-    dc.addEventListener("open", () => {
-      useTalkStore.getState().setStatus("idle");
+    const open = new Promise<void>((resolve) => {
+      dc.addEventListener("open", () => {
+        useTalkStore.getState().setStatus("idle");
+        resolve();
+      });
+      pc.addEventListener("connectionstatechange", () => {
+        if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+          resolve();
+        }
+      });
     });
 
     const offer = await pc.createOffer();
@@ -92,6 +107,8 @@ export class RealtimeSession {
       type: "answer",
       sdp: await sdpRes.text(),
     });
+
+    await open;
   }
 
   disconnect() {

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { HeadId } from "./heads";
 
 export type Status =
   | "offline"
@@ -41,7 +42,10 @@ type TalkState = {
   expressionIntensity: number;
   messages: Message[];
   muted: boolean;
+  /** False for a text-only session, where the mic was never requested at all. */
+  micEnabled: boolean;
   voice: Voice;
+  head: HeadId;
   /** server_vad silence window, in ms. How long a pause has to be before it counts as your turn ending. */
   patienceMs: number;
   error: string | null;
@@ -49,7 +53,9 @@ type TalkState = {
   setStatus: (status: Status) => void;
   setExpression: (expression: Expression, intensity: number) => void;
   setMuted: (muted: boolean) => void;
+  setMicEnabled: (micEnabled: boolean) => void;
   setVoice: (voice: Voice) => void;
+  setHead: (head: HeadId) => void;
   setPatienceMs: (ms: number) => void;
   setError: (error: string | null) => void;
   appendDelta: (id: string, role: Message["role"], delta: string) => void;
@@ -64,7 +70,9 @@ export const useTalkStore = create<TalkState>((set) => ({
   expressionIntensity: 0.4,
   messages: [],
   muted: false,
+  micEnabled: true,
   voice: "marin",
+  head: "male",
   patienceMs: 500,
   error: null,
 
@@ -72,7 +80,9 @@ export const useTalkStore = create<TalkState>((set) => ({
   setExpression: (expression, intensity) =>
     set({ expression, expressionIntensity: intensity }),
   setMuted: (muted) => set({ muted }),
+  setMicEnabled: (micEnabled) => set({ micEnabled }),
   setVoice: (voice) => set({ voice }),
+  setHead: (head) => set({ head }),
   setPatienceMs: (patienceMs) => set({ patienceMs }),
   setError: (error) => set({ error }),
 

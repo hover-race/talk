@@ -84,6 +84,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const voice: Voice = VOICES.includes(body.voice) ? body.voice : "marin";
   const patienceMs = Math.min(2000, Math.max(200, Number(body.patienceMs) || 500));
+  const mic = body.mic !== false;
 
   const upstream = await fetch(CLIENT_SECRETS_URL, {
     method: "POST",
@@ -99,17 +100,19 @@ export async function POST(req: Request) {
         instructions: INSTRUCTIONS,
         tools: TOOLS,
         audio: {
-          input: {
-            transcription: { model: "whisper-1" },
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.5,
-              prefix_padding_ms: 300,
-              silence_duration_ms: patienceMs,
-              create_response: true,
-              interrupt_response: true,
-            },
-          },
+          input: mic
+            ? {
+                transcription: { model: "whisper-1" },
+                turn_detection: {
+                  type: "server_vad",
+                  threshold: 0.5,
+                  prefix_padding_ms: 300,
+                  silence_duration_ms: patienceMs,
+                  create_response: true,
+                  interrupt_response: true,
+                },
+              }
+            : { turn_detection: null },
           output: { voice },
         },
       },

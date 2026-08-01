@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { startDemoVoice } from "@/lib/demo";
+import { HEAD_IDS, HEAD_PRESETS, type HeadId } from "@/lib/heads";
 import { realtime } from "@/lib/realtime";
 import { useTalkStore, VOICES, type Status, type Voice } from "@/lib/store";
 
@@ -26,23 +27,25 @@ const STATUS_DOT: Record<Status, string> = {
 export function Controls() {
   const status = useTalkStore((s) => s.status);
   const muted = useTalkStore((s) => s.muted);
+  const micEnabled = useTalkStore((s) => s.micEnabled);
   const voice = useTalkStore((s) => s.voice);
+  const head = useTalkStore((s) => s.head);
+  const setHead = useTalkStore((s) => s.setHead);
   const patienceMs = useTalkStore((s) => s.patienceMs);
   const error = useTalkStore((s) => s.error);
   const setVoice = useTalkStore((s) => s.setVoice);
   const setPatienceMs = useTalkStore((s) => s.setPatienceMs);
 
   const [draft, setDraft] = useState("");
-  const [demoAvailable, setDemoAvailable] = useState(false);
   const [demoRunning, setDemoRunning] = useState(false);
   const stopDemo = useRef<(() => void) | null>(null);
   const live = status !== "offline" && status !== "connecting";
 
-  useEffect(() => {
-    setDemoAvailable(
-      new URLSearchParams(window.location.search).has("demo"),
-    );
-  }, []);
+  const demoAvailable = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).has("demo"),
+    () => false,
+  );
 
   const toggleDemo = () => {
     if (stopDemo.current) {
@@ -55,23 +58,46 @@ export function Controls() {
     setDemoRunning(true);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = draft.trim();
-    if (!text || !live) return;
-    realtime.sendText(text);
+    if (!text || status === "connecting") return;
     setDraft("");
+    // Typing is enough to start a conversation; no reason to make them click first.
+    if (!live) await realtime.connect({ mic: false });
+    realtime.sendText(text);
   };
 
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3.5 py-2 text-xs font-medium tracking-wide text-neutral-300 backdrop-blur-md">
-          <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} />
-          {STATUS_LABEL[status]}
-          {live && !muted && (
-            <span className="ml-1 text-[10px] uppercase text-rose-400">mic on</span>
-          )}
+        <div className="flex flex-col items-start gap-2">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3.5 py-2 text-xs font-medium tracking-wide text-neutral-300 backdrop-blur-md">
+            <span className={`size-2 rounded-full ${STATUS_DOT[status]}`} />
+            {STATUS_LABEL[status]}
+            {live && micEnabled && !muted && (
+              <span className="ml-1 text-[10px] uppercase text-rose-400">mic on</span>
+            )}
+            {live && !micEnabled && (
+              <span className="ml-1 text-[10px] uppercase text-neutral-500">text only</span>
+            )}
+          </div>
+
+          <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur-md">
+            {HEAD_IDS.map((id: HeadId) => (
+              <button
+                key={id}
+                onClick={() => setHead(id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  head === id
+                    ? "bg-white text-neutral-900"
+                    : "text-neutral-400 hover:text-neutral-200"
+                }`}
+              >
+                {HEAD_PRESETS[id].label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="pointer-events-auto flex items-center gap-2">
@@ -118,8 +144,8 @@ export function Controls() {
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            disabled={!live}
-            placeholder={live ? "Or type instead…" : "Start a conversation to type"}
+            disabled={status === "connecting"}
+            placeholder={live && micEnabled ? "Or type instead…" : "Type a message…"}
             className="flex-1 rounded-full border border-white/10 bg-black/40 px-5 py-3 text-sm text-neutral-100 placeholder:text-neutral-600 backdrop-blur-md outline-none focus:border-sky-400/40 disabled:opacity-40"
           />
         </form>
@@ -127,16 +153,18 @@ export function Controls() {
         <div className="flex items-center gap-3">
           {live ? (
             <>
-              <button
-                onClick={() => realtime.setMuted(!muted)}
-                className={`rounded-full border px-5 py-3 text-sm font-medium backdrop-blur-md transition ${
-                  muted
-                    ? "border-rose-400/40 bg-rose-500/20 text-rose-200"
-                    : "border-white/10 bg-black/40 text-neutral-300 hover:border-white/25"
-                }`}
-              >
-                {muted ? "Unmute" : "Mute"}
-              </button>
+              {micEnabled && (
+                <button
+                  onClick={() => realtime.setMuted(!muted)}
+                  className={`rounded-full border px-5 py-3 text-sm font-medium backdrop-blur-md transition ${
+                    muted
+                      ? "border-rose-400/40 bg-rose-500/20 text-rose-200"
+                      : "border-white/10 bg-black/40 text-neutral-300 hover:border-white/25"
+                  }`}
+                >
+                  {muted ? "Unmute" : "Mute"}
+                </button>
+              )}
               <button
                 onClick={() => realtime.disconnect()}
                 className="rounded-full border border-white/10 bg-black/40 px-5 py-3 text-sm font-medium text-neutral-300 backdrop-blur-md transition hover:border-white/25"
