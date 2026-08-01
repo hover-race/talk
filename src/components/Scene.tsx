@@ -4,10 +4,10 @@ import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Spherical, Vector3, type PerspectiveCamera } from "three";
+import { GLB_HEADS, HEADS, isGlbHead } from "@/lib/heads";
+import { useTalkStore } from "@/lib/store";
 import { ProceduralHead } from "./ProceduralHead";
 import { GlbHead } from "./GlbHead";
-
-const AVATAR_URL = process.env.NEXT_PUBLIC_AVATAR_URL;
 
 /** Bounding box the head should always fit inside, in world units. */
 const FRAME_WIDTH = 2.5;
@@ -82,6 +82,17 @@ function CameraRig() {
   );
 }
 
+function Avatar() {
+  const head = useTalkStore((s) => s.head);
+
+  if (isGlbHead(head)) {
+    const { url, focusY } = GLB_HEADS[head];
+    return <GlbHead key={head} url={url} focusY={focusY} />;
+  }
+
+  return <ProceduralHead key={head} />;
+}
+
 export function Scene() {
   return (
     <Canvas
@@ -99,7 +110,7 @@ export function Scene() {
       <directionalLight position={[-1, 2.5, -4]} intensity={1.8} color="#ffd9b0" />
 
       <Suspense fallback={null}>
-        {AVATAR_URL ? <GlbHead url={AVATAR_URL} /> : <ProceduralHead />}
+        <Avatar />
       </Suspense>
     </Canvas>
   );

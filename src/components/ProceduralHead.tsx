@@ -3,7 +3,7 @@
 import { useRef, type RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { HEAD_PRESETS } from "@/lib/heads";
+import { HEAD_PRESETS, type ProceduralHeadId } from "@/lib/heads";
 import { useTalkStore } from "@/lib/store";
 import { useFaceDriver } from "@/lib/useFace";
 
@@ -23,7 +23,7 @@ const MANE = [0, 1, 2, 3, 4, 5].map((i) => {
 });
 
 export function ProceduralHead() {
-  const headId = useTalkStore((s) => s.head);
+  const headId = useTalkStore((s) => s.head) as ProceduralHeadId;
   const hairOverride = useTalkStore((s) => s.hairColor);
   const hairLength = useTalkStore((s) => s.hairLength);
   const preset = HEAD_PRESETS[headId];

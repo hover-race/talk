@@ -9,8 +9,60 @@ export const HAIR_COLORS = [
   { value: "#a97fd6", label: "Violet" },
 ] as const;
 
-export const HEAD_IDS = ["male", "female", "unicorn"] as const;
+/** GLB heads bundled from the aniface demo — https://github.com/alysachan830/aniface */
+export const GLB_HEAD_IDS = ["raccoon", "rpm"] as const;
+export type GlbHeadId = (typeof GLB_HEAD_IDS)[number];
+
+export const PROCEDURAL_HEAD_IDS = ["male", "female", "unicorn"] as const;
+export type ProceduralHeadId = (typeof PROCEDURAL_HEAD_IDS)[number];
+
+export const HEAD_IDS = [...GLB_HEAD_IDS, ...PROCEDURAL_HEAD_IDS] as const;
 export type HeadId = (typeof HEAD_IDS)[number];
+
+export function isGlbHead(id: HeadId): id is GlbHeadId {
+  return (GLB_HEAD_IDS as readonly string[]).includes(id);
+}
+
+export function isProceduralHead(id: HeadId): id is ProceduralHeadId {
+  return (PROCEDURAL_HEAD_IDS as readonly string[]).includes(id);
+}
+
+export type GlbHeadSpec = {
+  label: string;
+  kind: "glb";
+  url: string;
+  /** 0 = feet, 1 = top of head — where the camera locks after auto-fit. */
+  focusY: number;
+};
+
+export type ProceduralHeadSpec = {
+  label: string;
+  kind: "procedural";
+};
+
+export const GLB_HEADS: Record<GlbHeadId, GlbHeadSpec> = {
+  raccoon: {
+    label: "Raccoon",
+    kind: "glb",
+    url: "/models/raccoon_head_small.glb",
+    focusY: 0.5,
+  },
+  rpm: {
+    label: "RPM",
+    kind: "glb",
+    url: "/models/rpm_avatar.glb",
+    focusY: 0.88,
+  },
+};
+
+export type HeadSpec = GlbHeadSpec | ProceduralHeadSpec;
+
+export const HEADS: Record<HeadId, HeadSpec> = {
+  ...GLB_HEADS,
+  male: { label: "Male", kind: "procedural" },
+  female: { label: "Female", kind: "procedural" },
+  unicorn: { label: "Unicorn", kind: "procedural" },
+};
 
 export type HeadPreset = {
   label: string;
@@ -63,7 +115,7 @@ export type HeadPreset = {
   neckY: number;
 };
 
-export const HEAD_PRESETS: Record<HeadId, HeadPreset> = {
+export const HEAD_PRESETS: Record<ProceduralHeadId, HeadPreset> = {
   male: {
     label: "Male",
     palette: {

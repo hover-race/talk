@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { startDemoVoice } from "@/lib/demo";
-import { HAIR_COLORS, HEAD_IDS, HEAD_PRESETS, type HeadId } from "@/lib/heads";
+import { HAIR_COLORS, HEAD_IDS, HEAD_PRESETS, HEADS, isProceduralHead, type HeadId } from "@/lib/heads";
 import { realtime } from "@/lib/realtime";
 import { useTalkStore, VOICES, type Status, type Voice } from "@/lib/store";
 
@@ -40,7 +40,9 @@ export function Controls() {
   const setVoice = useTalkStore((s) => s.setVoice);
   const setPatienceMs = useTalkStore((s) => s.setPatienceMs);
 
-  const activeHair = hairColor ?? HEAD_PRESETS[head].palette.hair;
+  const activeHair = isProceduralHead(head)
+    ? (hairColor ?? HEAD_PRESETS[head].palette.hair)
+    : null;
 
   useEffect(() => {
     useTalkStore.persist.rehydrate();
@@ -104,56 +106,60 @@ export function Controls() {
                     : "text-neutral-400 hover:text-neutral-200"
                 }`}
               >
-                {HEAD_PRESETS[id].label}
+                {HEADS[id].label}
               </button>
             ))}
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-2.5 py-2 backdrop-blur-md">
-            {HAIR_COLORS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setHairColor(value)}
-                title={label}
-                aria-label={label}
-                aria-pressed={activeHair.toLowerCase() === value.toLowerCase()}
-                style={{ backgroundColor: value }}
-                className={`size-4 rounded-full border transition ${
-                  activeHair.toLowerCase() === value.toLowerCase()
-                    ? "scale-125 border-white"
-                    : "border-white/25 hover:border-white/60"
-                }`}
-              />
-            ))}
+          {isProceduralHead(head) && activeHair && (
+            <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/10 bg-black/40 px-2.5 py-2 backdrop-blur-md">
+              {HAIR_COLORS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setHairColor(value)}
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={
+                    activeHair.toLowerCase() === value.toLowerCase()
+                  }
+                  style={{ backgroundColor: value }}
+                  className={`size-4 rounded-full border transition ${
+                    activeHair.toLowerCase() === value.toLowerCase()
+                      ? "scale-125 border-white"
+                      : "border-white/25 hover:border-white/60"
+                  }`}
+                />
+              ))}
 
-            <label
-              title="Custom colour"
-              className="relative size-4 cursor-pointer overflow-hidden rounded-full border border-white/25"
-              style={{
-                background:
-                  "conic-gradient(#ef4444,#eab308,#22c55e,#06b6d4,#6366f1,#ec4899,#ef4444)",
-              }}
-            >
-              <input
-                type="color"
-                value={activeHair}
-                onChange={(e) => setHairColor(e.target.value)}
-                className="absolute inset-0 size-full cursor-pointer opacity-0"
-              />
-            </label>
-
-            {hairColor && (
-              <button
-                onClick={() => setHairColor(null)}
-                title="Back to this character's default"
-                className="ml-0.5 text-[10px] uppercase tracking-wide text-neutral-500 transition hover:text-neutral-300"
+              <label
+                title="Custom colour"
+                className="relative size-4 cursor-pointer overflow-hidden rounded-full border border-white/25"
+                style={{
+                  background:
+                    "conic-gradient(#ef4444,#eab308,#22c55e,#06b6d4,#6366f1,#ec4899,#ef4444)",
+                }}
               >
-                reset
-              </button>
-            )}
-          </div>
+                <input
+                  type="color"
+                  value={activeHair}
+                  onChange={(e) => setHairColor(e.target.value)}
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                />
+              </label>
 
-          {HEAD_PRESETS[head].longHair && (
+              {hairColor && (
+                <button
+                  onClick={() => setHairColor(null)}
+                  title="Back to this character's default"
+                  className="ml-0.5 text-[10px] uppercase tracking-wide text-neutral-500 transition hover:text-neutral-300"
+                >
+                  reset
+                </button>
+              )}
+            </div>
+          )}
+
+          {isProceduralHead(head) && HEAD_PRESETS[head].longHair && (
             <label className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/10 bg-black/40 px-3.5 py-2 text-xs text-neutral-400 backdrop-blur-md">
               length
               <input

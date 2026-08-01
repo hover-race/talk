@@ -81,7 +81,7 @@ export const useTalkStore = create<TalkState>()(
       muted: false,
       micEnabled: true,
       voice: "marin",
-      head: "female",
+      head: "raccoon",
       hairColor: null,
       hairLength: 0.35,
       patienceMs: 500,

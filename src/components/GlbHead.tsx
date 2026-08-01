@@ -37,7 +37,10 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
  * Ready Player Me exports that opt into them, whereas every model aniface targets
  * has the ARKit set.
  */
-export function GlbHead({ url }: { url: string }) {
+/** Matches Scene's orbit target Y. */
+const TARGET_Y = 0.05;
+
+export function GlbHead({ url, focusY }: { url: string; focusY: number }) {
   const drive = useFaceDriver();
   const group = useRef<THREE.Group>(null);
   const eyeBones = useRef<THREE.Object3D[]>([]);
@@ -60,18 +63,21 @@ export function GlbHead({ url }: { url: string }) {
       });
 
       // Head models come in wildly different units, so measure rather than assume.
-      const size = new THREE.Box3().setFromObject(scene).getSize(
-        new THREE.Vector3(),
-      );
+      const box = new THREE.Box3().setFromObject(scene);
+      const size = box.getSize(new THREE.Vector3());
       const fit = Math.min(FIT_HEIGHT / size.y, FIT_WIDTH / size.x);
-      group.current?.scale.setScalar(fit);
+      if (group.current) {
+        group.current.scale.setScalar(fit);
+        const anchorY = box.min.y + size.y * focusY;
+        group.current.position.y = TARGET_Y - anchorY * fit;
+      }
     });
 
     return () => {
       eyeBones.current = [];
       avatar.destroy();
     };
-  }, [avatar]);
+  }, [avatar, focusY]);
 
   useFrame((_, delta) => {
     if (!avatar.loaded) return;
