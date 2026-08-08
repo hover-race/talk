@@ -1,0 +1,35 @@
+{
+  "name": "talk-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "dependencies": {
+    "aniface": "0.4.0",
+    "three": "^0.185.1",
+    "vue": "^3.5.13"
+  },
+  "overrides": {
+    "aniface": {
+      "three": "$three"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/three": "^0.185.3",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/tsconfig": "^0.7.0",
+    "autoprefixer": "^10.4.21",
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.8"
+  }
+}
