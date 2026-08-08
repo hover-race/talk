@@ -163,25 +163,60 @@
       {{ store.error }}
     </div>
 
-    <!-- API key (stored in localStorage; spend limited by the OpenAI account) -->
+    <!-- Account / billing panel -->
     <div
-      class="pointer-events-auto absolute right-5 top-44 flex flex-col gap-2 rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md"
+      class="pointer-events-auto absolute right-5 top-44 flex w-56 flex-col gap-2 rounded-2xl border border-white/10 bg-black/60 p-4 backdrop-blur-md"
     >
-      <label class="text-xs text-neutral-400">
-        OpenAI API key
-        <input
-          type="password"
-          :value="store.apiKey ?? ''"
-          @input="
-            (e) => store.setApiKey((e.target as HTMLInputElement).value || null)
-          "
-          placeholder="sk-..."
-          class="mt-1 w-48 rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 outline-none focus:border-sky-400/40"
-        />
-      </label>
-      <p class="max-w-48 text-[10px] text-neutral-500">
-        Stored in your browser. Usage is billed to that OpenAI account.
-      </p>
+      <template v-if="firebaseOn">
+        <template v-if="store.user">
+          <p class="truncate text-xs text-neutral-300">
+            {{ store.user.email ?? store.user.displayName }}
+          </p>
+          <p class="text-xs text-neutral-400">
+            Credits:
+            <span class="tabular-nums text-neutral-200">{{ store.credits }}</span>
+          </p>
+          <button
+            @click="buyCredits"
+            :disabled="buying"
+            class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-200 disabled:opacity-50"
+          >
+            {{ buying ? "Opening…" : "Buy credits" }}
+          </button>
+          <button
+            @click="signOutUser()"
+            class="text-[10px] uppercase tracking-wide text-neutral-500 transition hover:text-neutral-300"
+          >
+            Sign out
+          </button>
+        </template>
+        <template v-else>
+          <p class="text-xs text-neutral-400">Sign in to talk</p>
+          <button
+            @click="signIn"
+            :disabled="signingIn"
+            class="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-200 disabled:opacity-50"
+          >
+            {{ signingIn ? "Signing in…" : "Sign in with Google" }}
+          </button>
+        </template>
+      </template>
+
+      <details class="text-xs text-neutral-500">
+        <summary class="cursor-pointer text-neutral-400">Dev: own API key</summary>
+        <label class="mt-2 block text-neutral-400">
+          OpenAI API key
+          <input
+            type="password"
+            :value="store.apiKey ?? ''"
+            @input="
+              (e) => store.setApiKey((e.target as HTMLInputElement).value || null)
+            "
+            placeholder="sk-..."
+            class="mt-1 w-full rounded-full border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-neutral-100 placeholder:text-neutral-600 outline-none focus:border-sky-400/40"
+          />
+        </label>
+      </details>
     </div>
 
     <!-- Bottom controls -->
@@ -239,6 +274,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { HAIR_COLORS, HEAD_IDS, HEAD_PRESETS, HEADS, isProceduralHead } from "@/lib/heads";
+import {
+  firebaseConfigured,
+  signInWithGoogle,
+  signOutUser,
+  startCheckout,
+} from "@/lib/firebase";
 import { realtime } from "@/lib/realtime";
 import { startDemoVoice } from "@/lib/demo";
 import { useTalkStore, VOICES, type Status, type Voice } from "@/lib/store";
@@ -246,7 +287,27 @@ import { useTalkStore, VOICES, type Status, type Voice } from "@/lib/store";
 const store = useTalkStore();
 const draft = ref("");
 const demoRunning = ref(false);
+const signingIn = ref(false);
+const buying = ref(false);
+const firebaseOn = firebaseConfigured();
 let stopDemo: (() => void) | null = null;
+
+async function signIn() {
+  signingIn.value = true;
+  store.setError(null);
+  await signInWithGoogle().finally(() => {
+    signingIn.value = false;
+  });
+}
+
+async function buyCredits() {
+  buying.value = true;
+  store.setError(null);
+  const url = await startCheckout().finally(() => {
+    buying.value = false;
+  });
+  window.location.href = url;
+}
 
 const demoAvailable = computed(() => {
   if (typeof window === "undefined") return false;

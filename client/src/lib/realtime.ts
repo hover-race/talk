@@ -1,4 +1,5 @@
 import { audioBus } from "./audio";
+import { createSession, firebaseConfigured } from "./firebase";
 import { applySettings, readSettings } from "./settings";
 import { mintClientSecret } from "./session";
 import { EXPRESSIONS, useTalkStore, type Expression } from "./store";
@@ -9,6 +10,32 @@ type ServerEvent = {
   type: string;
   [key: string]: unknown;
 };
+
+async function mintEphemeralKey(mic: boolean): Promise<string> {
+  const store = useTalkStore();
+  const payload = {
+    voice: store.voice,
+    patienceMs: store.patienceMs,
+    mic,
+    settings: readSettings(),
+  };
+
+  if (firebaseConfigured() && store.user) {
+    const { value, credits } = await createSession(payload);
+    store.setCredits(credits);
+    return value;
+  }
+
+  if (store.apiKey) {
+    const { value } = await mintClientSecret(store.apiKey, payload);
+    return value;
+  }
+
+  if (firebaseConfigured()) {
+    throw new Error("Sign in and buy credits to start talking.");
+  }
+  throw new Error("Add your OpenAI API key, or configure Firebase.");
+}
 
 export class RealtimeSession {
   private pc: RTCPeerConnection | null = null;
@@ -27,29 +54,14 @@ export class RealtimeSession {
     store.setMicEnabled(mic);
     store.setStatus("connecting");
 
-    const apiKey = store.apiKey;
-    if (!apiKey) {
-      store.setStatus("offline");
-      store.setError("Add your OpenAI API key to start talking.");
-      return;
-    }
-
-    let ephemeralKey: string;
-    try {
-      const { value } = await mintClientSecret(apiKey, {
-        voice: store.voice,
-        patienceMs: store.patienceMs,
-        mic,
-        settings: readSettings(),
-      });
-      ephemeralKey = value;
-    } catch (err) {
+    const ephemeralKey = await mintEphemeralKey(mic).catch((err: unknown) => {
       store.setStatus("offline");
       store.setError(
         err instanceof Error ? err.message : "Failed to create session.",
       );
-      return;
-    }
+      return null;
+    });
+    if (!ephemeralKey) return;
 
     const pc = new RTCPeerConnection();
     this.pc = pc;

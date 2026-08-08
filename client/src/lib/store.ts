@@ -1,4 +1,5 @@
 import { reactive } from "vue";
+import type { User } from "firebase/auth";
 import type { HeadId } from "./heads";
 
 export type Status =
@@ -97,7 +98,10 @@ export type TalkState = {
   hairLength: number;
   patienceMs: number;
   error: string | null;
+  /** Optional BYOK fallback when Firebase isn't configured. */
   apiKey: string | null;
+  user: User | null;
+  credits: number;
 
   setStatus: (status: Status) => void;
   setExpression: (expression: Expression, intensity: number) => void;
@@ -110,6 +114,8 @@ export type TalkState = {
   setPatienceMs: (ms: number) => void;
   setError: (error: string | null) => void;
   setApiKey: (apiKey: string | null) => void;
+  setUser: (user: User | null) => void;
+  setCredits: (credits: number) => void;
   appendDelta: (id: string, role: Message["role"], delta: string) => void;
   setMessageText: (id: string, role: Message["role"], text: string) => void;
   finishMessage: (id: string) => void;
@@ -131,9 +137,9 @@ export const store = reactive<TalkState>({
   hairLength: prefs.hairLength ?? 0.35,
   patienceMs: 500,
   error: null,
-  apiKey:
-    localStorage.getItem(API_KEY) ||
-    "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",
+  apiKey: localStorage.getItem(API_KEY),
+  user: null,
+  credits: 0,
 
   setStatus(status) {
     this.status = status;
@@ -174,6 +180,12 @@ export const store = reactive<TalkState>({
     this.apiKey = apiKey;
     if (apiKey) localStorage.setItem(API_KEY, apiKey);
     else localStorage.removeItem(API_KEY);
+  },
+  setUser(user) {
+    this.user = user;
+  },
+  setCredits(credits) {
+    this.credits = credits;
   },
   appendDelta(id, role, delta) {
     const existing = this.messages.find((m) => m.id === id);
